@@ -20,12 +20,20 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def config_path() -> Path:
+def repo_config_path() -> Path:
     return repo_root() / ".slackbot.json"
 
 
-def load_config(path: Path | None = None) -> SlackbotConfig:
-    resolved_path = path or config_path()
+def home_config_dir() -> Path:
+    return Path.home() / ".slackbot"
+
+
+def home_config_path() -> Path:
+    return home_config_dir() / "config.json"
+
+
+def load_config(path: Path) -> SlackbotConfig:
+    resolved_path = path
     if not resolved_path.exists():
         return SlackbotConfig()
 
@@ -42,15 +50,31 @@ def load_config(path: Path | None = None) -> SlackbotConfig:
         )
 
     return SlackbotConfig(
-        bot_user_oauth_token=_optional_string(
-            data.get("bot_user_oauth_token") or data.get("bot_token")
-        ),
+        bot_user_oauth_token=_optional_string(data.get("bot_user_oauth_token")),
         default_channel=_optional_string(data.get("default_channel")),
     )
 
 
-def save_config(config: SlackbotConfig, path: Path | None = None) -> Path:
-    resolved_path = path or config_path()
+def load_merged_config(
+    *,
+    repo_path: Path | None = None,
+    home_path: Path | None = None,
+) -> SlackbotConfig:
+    resolved_repo_path = repo_path or repo_config_path()
+    resolved_home_path = home_path or home_config_path()
+
+    home_config = load_config(resolved_home_path)
+    repo_config = load_config(resolved_repo_path)
+
+    return SlackbotConfig(
+        bot_user_oauth_token=home_config.bot_user_oauth_token,
+        default_channel=repo_config.default_channel or home_config.default_channel,
+    )
+
+
+def save_config(config: SlackbotConfig, path: Path) -> Path:
+    resolved_path = path
+    resolved_path.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, Any] = {
         "bot_user_oauth_token": config.bot_user_oauth_token,
         "default_channel": config.default_channel,
@@ -60,6 +84,40 @@ def save_config(config: SlackbotConfig, path: Path | None = None) -> Path:
         encoding="utf-8",
     )
     return resolved_path
+
+
+def save_home_config(
+    bot_user_oauth_token: str | None,
+    *,
+    existing: SlackbotConfig | None = None,
+    path: Path | None = None,
+) -> Path:
+    resolved_path = path or home_config_path()
+    prior = existing or load_config(resolved_path)
+    return save_config(
+        SlackbotConfig(
+            bot_user_oauth_token=bot_user_oauth_token,
+            default_channel=prior.default_channel,
+        ),
+        resolved_path,
+    )
+
+
+def save_repo_config(
+    default_channel: str | None,
+    *,
+    existing: SlackbotConfig | None = None,
+    path: Path | None = None,
+) -> Path:
+    resolved_path = path or repo_config_path()
+    prior = existing or load_config(resolved_path)
+    return save_config(
+        SlackbotConfig(
+            bot_user_oauth_token=None,
+            default_channel=default_channel,
+        ),
+        resolved_path,
+    )
 
 
 def _optional_string(value: object) -> str | None:

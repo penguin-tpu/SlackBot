@@ -1,0 +1,4 @@
+interface:
+  display_name: "SlackBot"
+  short_description: "Send simple Slack status messages and notifications"
+  default_prompt: "Use $slackbot to send a short operational message to Slack."

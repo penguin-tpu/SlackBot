@@ -10,9 +10,12 @@ from typing import Sequence
 from .config import (
     SlackbotConfig,
     SlackbotConfigError,
-    config_path,
     load_config,
-    save_config,
+    load_merged_config,
+    home_config_path,
+    repo_config_path,
+    save_home_config,
+    save_repo_config,
 )
 from .slack_api import SlackApiError, SlackClient, SlackMessageRequest
 
@@ -44,7 +47,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--setup",
         action="store_true",
-        help="Prompt for local Slack settings and save them in the repo directory.",
+        help="Prompt for Slack settings and save them under ~/.slackbot/ and this repo.",
     )
     parser.add_argument(
         "--dry-run",
@@ -67,7 +70,8 @@ def has_interactive_terminal() -> bool:
 
 def prompt_for_local_config(existing: SlackbotConfig) -> SlackbotConfig:
     print("Slackbot first-run setup")
-    print("The Bot User OAuth Token and optional default channel will be stored locally in this repo.")
+    print("The Bot User OAuth Token will be stored in ~/.slackbot/config.json.")
+    print("The optional default channel will be stored in this repo's .slackbot.json.")
 
     bot_user_oauth_token = _prompt_secret(
         "Bot User OAuth Token (xoxb-...)",
@@ -84,14 +88,17 @@ def prompt_for_local_config(existing: SlackbotConfig) -> SlackbotConfig:
 
 
 def resolve_local_config(args: argparse.Namespace) -> SlackbotConfig:
-    path = config_path()
+    repo_path = repo_config_path()
+    home_path = home_config_path()
     try:
-        config = load_config(path)
+        repo_config = load_config(repo_path)
+        home_config = load_config(home_path)
+        config = load_merged_config(repo_path=repo_path, home_path=home_path)
     except SlackbotConfigError as exc:
         raise SlackApiError(str(exc)) from exc
 
     should_prompt_for_setup = args.setup or (
-        not args.dry_run and (not path.exists() or not config.bot_user_oauth_token)
+        not args.dry_run and not config.bot_user_oauth_token
     )
     if not should_prompt_for_setup:
         return config
@@ -111,8 +118,18 @@ def resolve_local_config(args: argparse.Namespace) -> SlackbotConfig:
         default_channel=args.channel or config.default_channel,
     )
     saved_config = prompt_for_local_config(seeded_config)
-    save_config(saved_config, path)
-    print(f"Saved Slack config to {path}")
+    save_home_config(
+        saved_config.bot_user_oauth_token,
+        existing=home_config,
+        path=home_path,
+    )
+    save_repo_config(
+        saved_config.default_channel,
+        existing=repo_config,
+        path=repo_path,
+    )
+    print(f"Saved Slack token to {home_path}")
+    print(f"Saved default channel to {repo_path}")
     return saved_config
 
 

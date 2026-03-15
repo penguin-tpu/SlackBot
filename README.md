@@ -2,6 +2,10 @@
 
 Small Python package for sending a message to Slack with a bot integration.
 
+This repository also works as a Codex/OpenAI skill. The skill entrypoint is
+[SKILL.md](/home/tk/Downloads/slackbot/SKILL.md), with setup details in
+[references/setup.md](/home/tk/Downloads/slackbot/references/setup.md).
+
 ## Installation
 
 Install from repo
@@ -39,8 +43,12 @@ options:
 ```
 
 On the first real run, the CLI prompts for the Slack Bot User OAuth Token
-(`xoxb-...`) and an optional default channel ID or name, then stores them in
-`.slackbot.json` at the repo root.
+(`xoxb-...`) and an optional default channel ID or name.
+
+Storage layout:
+
+- Bot User OAuth Token: `~/.slackbot/config.json`
+- Per-repo default channel override: `.slackbot.json`
 
 ## Slack setup
 
