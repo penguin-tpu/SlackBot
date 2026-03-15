@@ -10,5 +10,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
 
+[project.scripts]
+slackbot = "slackbot.__main__:main"
+
 [tool.hatchling.build.targets.wheel]
 packages = ["slackbot"]
